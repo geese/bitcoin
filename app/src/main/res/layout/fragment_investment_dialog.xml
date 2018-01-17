@@ -3,17 +3,20 @@
              android:layout_width="match_parent"
              android:layout_height="match_parent"
               android:orientation="vertical"
+              android:padding="24dp"
              tools:context="com.sixgeese.bitcoininvestment.InvestmentDialogFragment">
 
     <!-- TODO: Update blank fragment layout -->
     <TextView
         android:gravity="center_horizontal"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:text="Enter initial investment amount"/>
 
     <EditText
+        android:layout_gravity="center_horizontal"
         android:id="@+id/edit_init_investment_dialog"
+        android:inputType="numberDecimal"
         android:hint="200.00"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"/>
