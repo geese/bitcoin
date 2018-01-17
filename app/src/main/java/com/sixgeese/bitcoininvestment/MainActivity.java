@@ -3,6 +3,7 @@ package com.sixgeese.bitcoininvestment;
 import android.app.Dialog;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
+import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -12,6 +13,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.sixgeese.bitcoininvestment.utils.HttpJsonParser;
@@ -24,27 +26,72 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.prefs.Preferences;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity
+        implements InvestmentDialogFragment.NoticeInvestmentDialogListener,
+                    BuyinDialogFragment.NoticeBuyinDialogListener {
     private String url = "https://api.coinbase.com/v2/prices/spot";
     private Map<String, String> theParams;
     private static final String KEY_DATA = "data";
     private static final String KEY_AMOUNT = "amount";
     private static final String KEY_INITIAL_INVESTMENT = "init_invest";
     private static final String KEY_INITIAL_SPOT_PRICE = "init_spot";
+    private static final String KEY_BUYIN_PRICE = "buyin_price";
     private String data;
     private double initialInvestmentValue;
     private double currentInvestmentValue;
+    private double buyInPrice;//price of 1 Bitcoin when we invested
     private double fraction;
 
 
     private TextView tvw_spotPrice;
     private TextView tvw_initialInvestmentValue;
     private TextView tvw_currentInvestmentValue;
+    private TextView tvw_buyinPrice;
+
+    private RelativeLayout img_refresh;
+    private RelativeLayout img_editInitInvestment;
+    private RelativeLayout img_editBuyinPrice;
+
+
     private ImageView refresh;
     private ImageView editInitInvestment;
+    private ImageView editBuyinPrice;
 
     private SharedPreferences prefs;
     private SharedPreferences.Editor editor;
+
+    @Override
+    public void onInvestmentDialogPositiveClick(DialogFragment dialog) {
+        Float newValue = dialog.getArguments().getFloat("value");
+        Log.d("value: ",  newValue+"");
+
+        editor.putFloat(KEY_INITIAL_INVESTMENT, newValue).apply();
+
+        initialInvestmentValue = (double)newValue;
+        tvw_initialInvestmentValue.setText(String.format(Locale.US, "$%,.2f", initialInvestmentValue));
+        fraction = initialInvestmentValue/(double)prefs.getFloat(KEY_BUYIN_PRICE, 13900f);
+
+        new FetchSpotPrice().execute();
+    }
+
+    @Override
+    public void onBuyinDialogPositiveClick(DialogFragment dialog) {
+        Float newValue = dialog.getArguments().getFloat("value");
+        Log.d("value: ",  newValue+"");
+
+        editor.putFloat(KEY_BUYIN_PRICE, newValue).apply();
+
+        buyInPrice = (double)newValue;
+        tvw_buyinPrice.setText(String.format(Locale.US, "$%,.2f", buyInPrice));
+        fraction = (double)prefs.getFloat(KEY_INITIAL_INVESTMENT, 200f)/buyInPrice;
+
+        new FetchSpotPrice().execute();
+    }
+
+    @Override
+    public void onInvestmentDialogNegativeClick(DialogFragment dialog) {}
+    @Override
+    public void onBuyinDialogNegativeClick(DialogFragment dialog) {}
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,53 +107,47 @@ public class MainActivity extends AppCompatActivity {
         if (!prefs.contains(KEY_INITIAL_SPOT_PRICE))
             editor.putFloat(KEY_INITIAL_SPOT_PRICE, 13900f).apply();
 
+        if (!prefs.contains(KEY_BUYIN_PRICE))
+            editor.putFloat(KEY_BUYIN_PRICE, 13900f).apply();
+
         initialInvestmentValue = (double)prefs.getFloat(KEY_INITIAL_INVESTMENT, 200f);
-        fraction = initialInvestmentValue/(double)prefs.getFloat(KEY_INITIAL_SPOT_PRICE, 13900f);
+        buyInPrice = (double)prefs.getFloat(KEY_BUYIN_PRICE, 13900f);
+        fraction = initialInvestmentValue/buyInPrice;
 
         theParams = new HashMap<>();
         theParams.put("currency", "USD");
 
-        refresh = findViewById(R.id.refresh);
-        refresh.setOnClickListener(new View.OnClickListener() {
+        img_refresh = findViewById(R.id.img_refresh);
+        img_refresh.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 new FetchSpotPrice().execute();
             }
         });
 
-        editInitInvestment = findViewById(R.id.edit_init_investment);
-        editInitInvestment.setOnClickListener(new View.OnClickListener() {
+        img_editInitInvestment = findViewById(R.id.img_edit_init_investment);
+        img_editInitInvestment.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                View editView = getLayoutInflater().inflate(R.layout.dialog_initial_investment, null);
-
-                builder.setView(editView);
-                final AlertDialog dialog = builder.create();
-
-                final EditText editInitInv = editView.findViewById(R.id.edit_init_investment_dialog);
-                Button saveInitInv = editView.findViewById(R.id.save_init_investment_dialog_button);
-                Button cancelSaveInitInv = editView.findViewById(R.id.cancel_save_init_investment_dialog_button);
-
-                editInitInv.setHint(String.format(Locale.US, "%,.2f", prefs.getFloat(KEY_INITIAL_INVESTMENT, 200f)));
-
-                saveInitInv.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        float newInitInvest = Float.parseFloat(editInitInv.getText().toString());
-                        tvw_initialInvestmentValue.setText(String.format(Locale.US, "%,.2f", newInitInvest));
-                        editor.putFloat(KEY_INITIAL_INVESTMENT, newInitInvest).apply();
-                        initialInvestmentValue = (double)prefs.getFloat(KEY_INITIAL_INVESTMENT, 200f);
-                        dialog.dismiss();
-                        new FetchSpotPrice().execute();
-                    }
-                });
-
-
-                dialog.show();
+                Bundle bundle = new Bundle();
+                bundle.putFloat("investment", prefs.getFloat(KEY_INITIAL_INVESTMENT, 200f));
+                DialogFragment dialog = new InvestmentDialogFragment();
+                dialog.setArguments(bundle);
+                dialog.show(getSupportFragmentManager(), "investment");
             }
         });
 
+        img_editBuyinPrice = findViewById(R.id.img_edit_buy_in);
+        img_editBuyinPrice.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Bundle bundle = new Bundle();
+                bundle.putFloat("buyin", prefs.getFloat(KEY_BUYIN_PRICE, 13900f));
+                DialogFragment dialog = new BuyinDialogFragment();
+                dialog.setArguments(bundle);
+                dialog.show(getSupportFragmentManager(), "buyin");
+            }
+        });
 
 
         Log.d("debug", "Fraction: " + fraction);
@@ -116,6 +157,10 @@ public class MainActivity extends AppCompatActivity {
 
         tvw_initialInvestmentValue = findViewById(R.id.initial_investment_amount);
         tvw_currentInvestmentValue = findViewById(R.id.investment_value);
+        tvw_buyinPrice = findViewById(R.id.bitcoin_price_buy_in);
+
+        tvw_initialInvestmentValue.setText(String.format(Locale.US, "$%,.2f", prefs.getFloat(KEY_INITIAL_INVESTMENT, 200f)));
+        tvw_buyinPrice.setText(String.format(Locale.US, "$%,.2f", prefs.getFloat(KEY_BUYIN_PRICE, 13900f)));
 
         //Call the AsyncTask
         new FetchSpotPrice().execute();
@@ -160,8 +205,8 @@ public class MainActivity extends AppCompatActivity {
                     double spotPrice = spotPriceObj.getDouble(KEY_AMOUNT);
                     Log.d("debug", "spotPrice: " + spotPrice);
 
-                    tvw_spotPrice.setText(String.format(Locale.US, "%,.2f", spotPrice));
-                    tvw_currentInvestmentValue.setText(String.format(Locale.US, "%,.2f", spotPrice *fraction));
+                    tvw_spotPrice.setText(String.format(Locale.US, "$%,.2f", spotPrice));
+                    tvw_currentInvestmentValue.setText(String.format(Locale.US, "$%,.2f", spotPrice *fraction));
 
                 } catch (JSONException e) {
                     e.printStackTrace();
