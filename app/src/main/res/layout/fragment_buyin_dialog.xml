@@ -1,0 +1,24 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+             xmlns:tools="http://schemas.android.com/tools"
+             android:layout_width="match_parent"
+             android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:padding="24dp"
+             tools:context="com.sixgeese.bitcoininvestment.InvestmentDialogFragment">
+
+    <!-- TODO: Update blank fragment layout -->
+    <TextView
+        android:gravity="center_horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enter price of 1 Bitcoin at buy-in"/>
+
+    <EditText
+        android:layout_gravity="center_horizontal"
+        android:id="@+id/edit_buyin_dialog"
+        android:inputType="numberDecimal"
+        android:hint="13900.00"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+</LinearLayout>
